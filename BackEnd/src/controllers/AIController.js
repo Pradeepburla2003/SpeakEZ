@@ -49,7 +49,7 @@ const uploadDocument = async (req, res) => {
             attempts++;
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        console.log(result)
+        // console.log(result)
         if (result !== null) {
             // console.log(result)
             res.status(200).send(result);
@@ -73,7 +73,7 @@ const WETQuestion=async(req,res)=>{
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-       
+    //    console.log(text)
         res.status(200).send({ question: text });
     }
 
@@ -88,7 +88,7 @@ const Getquestions=async(req,res)=>{
         const { JobSkills, JobRole, ApplicantName } = req.body;
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        const prompt = `You are the interviewer for the ${JobRole} position. Your task is to conduct a mock interview with ${ApplicantName} based on the skills - (${JobSkills}). Generate interview questions that require brief, conceptual answers. Please avoid questions that require code implementation. Provide only 5 questions in total.Make it more realistic by using his name which is ${ApplicantName}}in the questions.`;
+        const prompt = `You are the interviewer for the ${JobRole} position. Your task is to conduct a mock interview with ${ApplicantName} based on the skills - (${JobSkills}). Generate basic interview questions that require brief, conceptual answers. Please avoid questions that require code implementation. Provide only 5 questions in total.Make it more realistic by using his name which is ${ApplicantName}}in the questions.`;
 
         async function run() {
             
@@ -190,19 +190,6 @@ const EnglishScore=async(req,res)=>{
       result.sentences.map((sentence) => summary.push(sentence.text))
     }
   }
-//   const keyPhrases = await client.extractKeyPhrases(documents);
-
-//   for (const result of keyPhrases) {
-//     console.log(`- Document ${result.id}`);
-//     if (!result.error) {
-//       console.log("\tKey phrases:");
-//       for (const phrase of result.keyPhrases) {
-//         console.log(`\t- ${phrase}`);
-//       }
-//     } else {
-//       console.error("  Error:", result.error);
-//     }
-//   }
         const [syntax] = await client_spell.analyzeSyntax({document, encodingType});
         const partsOfSpeech={'ADJ':[],'NOUN':[],'VERB':[],'ADV':[]}
         
@@ -229,7 +216,7 @@ const EnglishScore=async(req,res)=>{
 }
 const RandomText=async(req,res)=>{
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const prompt = `Provide  descriptive text suitable for practicing English fluency and accent, focusing on the theme of adventure. so that a person takes 3 minutes to read it.`;
+    const prompt = `Provide  descriptive text suitable for practicing English fluency and accent, focusing on the theme of adventure.And make sure that the words should not more complicated and they should be used in daily life.so that a person takes 3 minutes to read it.Give cinema related topics`;
     try{
     async function run() {
         
@@ -249,10 +236,106 @@ const RandomText=async(req,res)=>{
         res.status(500).send('Internal Server Error');
     }
 }
+const VocalScore = async (req, res) => {
+    try {
+        const { actualText, transcribedText } = req.body;
+
+        // Validate inputs
+        if (!actualText || !transcribedText) {
+            return res.status(400).json({ message: 'Both actual text and transcribed text are required.' });
+        }
+
+        // Calculate accuracy score and get other details
+        const { accuracy, lcsLength, matchedWords, mismatchedWords, matchedCount, mismatchedCount } = await evaluateAccuracyScore(actualText, transcribedText);
+
+        // Return the score and additional details
+        res.json({
+            accuracy,
+            lcsLength,
+            matchedWords,
+            mismatchedWords,
+            matchedCount, // Include matched count
+            mismatchedCount // Include mismatched count
+        });
+    } catch (error) {
+        console.error('Error processing vocal score:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+}
+
+const evaluateAccuracyScore = async (actualText, transcribedText) => {
+    const actualWords = actualText.split(/\s+/);
+    const transcribedWords = transcribedText.split(/\s+/);
+
+    const m = actualWords.length;
+    const n = transcribedWords.length;
+
+    // Initialize LCS DP table
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+    // Fill DP table
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            if (actualWords[i - 1].toLowerCase() === transcribedWords[j - 1].toLowerCase()) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+    }
+
+    // LCS length is found in dp[m][n]
+    const lcsLength = dp[m][n];
+
+    // Determine matched and mismatched words
+    const matchedWords = [];
+    const mismatchedWords = [];
+
+    // Backtrack to find the LCS words
+    let i = m, j = n;
+    while (i > 0 && j > 0) {
+        if (actualWords[i - 1].toLowerCase() === transcribedWords[j - 1].toLowerCase()) {
+            matchedWords.push(actualWords[i - 1]); // Push matched word
+            i--;
+            j--;
+        } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+            i--;
+        } else {
+            j--;
+        }
+    }
+    matchedWords.reverse(); // Reverse to maintain original order
+
+    // Create a Set for easier mismatched words calculation
+    const matchedSet = new Set(matchedWords.map(word => word.toLowerCase()));
+
+    for (let word of actualWords) {
+        if (!matchedSet.has(word.toLowerCase())) {
+            mismatchedWords.push(word); // Identify mismatched words
+        }
+    }
+
+    // Calculate accuracy based on LCS length
+    let accuracy = (lcsLength / m) * 100;
+    const matchedCount = matchedWords.length;
+    const mismatchedCount = mismatchedWords.length;
+    accuracy = accuracy.toFixed(2);
+
+    return {
+        matchedWords,
+        mismatchedWords,
+        matchedCount,
+        mismatchedCount,
+        accuracy
+    };
+};
+
+
 module.exports = {
     uploadDocument,
     Getquestions,
     WETQuestion,
     EnglishScore,
-    RandomText
+    RandomText,
+    VocalScore
 };
