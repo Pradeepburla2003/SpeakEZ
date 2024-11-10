@@ -115,7 +115,7 @@ const ResumeParser = (props) => {
       while(questionsArray.length===0)
       {
       // console.log(parsedData);
-      const response = await axios.post('http://localhost:4000/ai/getquestions', parsedData,{
+      const response = await axios.post(`http://localhost:4000/ai/getquestions`, parsedData,{
         onUploadProgress: progressEvent => {
           const progress = (progressEvent.loaded / progressEvent.total) * 100;
           setquestionprogress(progress)
@@ -151,7 +151,7 @@ const ResumeParser = (props) => {
     setAnswers(newAnswers);
   };
   const Update_Test_Count=async()=>{
-    const response=await axios.post("http://localhost:4000/api/TestCount",Testcount);
+    const response=await axios.post(`http://localhost:4000/api/TestCount`,Testcount);
     if(response.data)
       {
         navigator('/dashboard')
@@ -190,7 +190,7 @@ const ResumeParser = (props) => {
           setvalue_cur(i);
         }, i * 30); // Increment value every 10 milliseconds
       }
-      const endpoint='https://sanjaybravestone.cognitiveservices.azure.com';
+      const endpoint='https://speakez.cognitiveservices.azure.com';
       const response = await axios.post(`${endpoint}/text/analytics/v3.0/sentiment`, {
         documents: answers.map((value, index) => ({
           id: index,
@@ -199,9 +199,10 @@ const ResumeParser = (props) => {
       }, {
           headers: {
               'Content-Type': 'application/json',
-              'Ocp-Apim-Subscription-Key': '4e8688829a394610b094d8a1d5564abc'
+              'Ocp-Apim-Subscription-Key': '9431067ba17849d196309737b8671e4a'
           }
       });
+      console.log(response.data);
       const totalCount = response.data.documents.length;
 
 response.data.documents.forEach(value => {
